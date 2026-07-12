@@ -3,6 +3,8 @@
 
 # QElectroTech
 
+A fork is under in Qt Creator desktop.
+
 ### What it is
 
 QElectroTech, or QET in short, is a libre and open source desktop application to create diagrams and schematics.  

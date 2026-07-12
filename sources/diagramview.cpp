@@ -931,7 +931,7 @@ void DiagramView::adjustSceneRect()
 	if (settings.value("diagrameditor/zoom-out-beyond-of-folio", false).toBool())
 	{
 			//When zoom out beyond of folio is active,
-			//we always adjust the scene rect to be 1/3 bigger than the wiewport
+			//we always adjust the scene rect to be 1/3 bigger than the viewport
 		QRectF vpbr = mapToScene(viewport()->rect()).boundingRect();
 		vpbr.adjust(0, 0, vpbr.width()/3, vpbr.height()/3);
 		scene_rect = scene_rect.united(vpbr);
