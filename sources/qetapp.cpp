@@ -38,6 +38,7 @@
 #include "machine_info.h"
 #include "TerminalStrip/ui/terminalstripeditorwindow.h"
 #include "qetversion.h"
+#include "units.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -2286,6 +2287,12 @@ void QETApp::initConfiguration()
 	QDir macros_dir(QETApp::userMacrosDir());
 	if (!macros_dir.exists())
 		macros_dir.mkpath(QETApp::userMacrosDir());
+
+	QSettings settings;
+	UnitConverter::instance()->setSystem(
+		static_cast<QET::UnitSystem>(
+			settings.value(QStringLiteral("diagrameditor/unit_system"),
+						   static_cast<int>(QET::UnitSystem::None)).toInt()));
 
 	/* recent files
 	 * note:

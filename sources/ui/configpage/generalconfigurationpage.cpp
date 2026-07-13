@@ -21,6 +21,7 @@
 #include "../../qeticons.h"
 #include "ui_generalconfigurationpage.h"
 #include "../../utils/qetsettings.h"
+#include "../../units.h"
 #include "../../qetmessagebox.h"
 #include <QFileDialog>
 #include <QFontDialog>
@@ -67,6 +68,15 @@ GeneralConfigurationPage::GeneralConfigurationPage(QWidget *parent) :
 #endif
 	ui->grid_startup_cb->setChecked(settings.value("diagrameditor/grid_display_startup", true).toBool());
 	ui->guides_startup_cb->setChecked(settings.value("diagrameditor/guides_display_startup", false).toBool());
+	for (int i = 0; i < static_cast<int>(QET::UnitSystem::MaxUnit); ++i) {
+		auto sys = static_cast<QET::UnitSystem>(i);
+		ui->m_unit_system_cb->addItem(UnitConverter::unitName(sys), i);
+	}
+	int unitIdx = settings.value(
+		QStringLiteral("diagrameditor/unit_system"),
+		static_cast<int>(QET::UnitSystem::None)).toInt();
+	int cbIdx = ui->m_unit_system_cb->findData(unitIdx);
+	ui->m_unit_system_cb->setCurrentIndex(cbIdx >= 0 ? cbIdx : 0);
 	ui->DiagramEditor_xGrid_sb->setValue(settings.value("diagrameditor/Xgrid", 10).toInt());
 	ui->DiagramEditor_yGrid_sb->setValue(settings.value("diagrameditor/Ygrid", 10).toInt());
 	ui->DiagramEditor_xKeyGrid_sb->setValue(settings.value("diagrameditor/key_Xgrid", 10).toInt());
@@ -244,6 +254,10 @@ void GeneralConfigurationPage::applyConf()
 
 	settings.setValue("diagrameditor/grid_display_startup", ui->grid_startup_cb->isChecked());
 	settings.setValue("diagrameditor/guides_display_startup", ui->guides_startup_cb->isChecked());
+	int unitIdx = ui->m_unit_system_cb->currentData().toInt();
+	settings.setValue(QStringLiteral("diagrameditor/unit_system"), unitIdx);
+	UnitConverter::instance()->setSystem(
+		static_cast<QET::UnitSystem>(unitIdx));
 		//Grid step and key navigation
 	settings.setValue("diagrameditor/Xgrid", ui->DiagramEditor_xGrid_sb->value());
 	settings.setValue("diagrameditor/Ygrid", ui->DiagramEditor_yGrid_sb->value());
