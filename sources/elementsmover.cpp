@@ -19,6 +19,7 @@
 #include "qetproject.h"
 #include "conductorautonumerotation.h"
 #include "diagram.h"
+#include "units.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -154,7 +155,11 @@ void ElementsMover::continueMovement(const QPointF &movement)
 	if (m_status_bar && m_movement_driver)
 	{
 		const auto point_{m_movement_driver->scenePos()};
-		m_status_bar->showMessage(QString("x %1 : y %2").arg(QString::number(point_.x()), QString::number(point_.y())));
+		auto *uc = UnitConverter::instance();
+		m_status_bar->showMessage(
+			QString("x %1 : y %2").arg(
+				QString::number(uc->toDisplay(point_.x())),
+				QString::number(uc->toDisplay(point_.y()))));
 	}
 }
 

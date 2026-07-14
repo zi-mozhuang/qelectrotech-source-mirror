@@ -19,6 +19,7 @@
 #include "../qetproject.h"
 #include "../conductorautonumerotation.h"
 #include "../diagram.h"
+#include "../units.h"
 #include "../undocommand/addgraphicsobjectcommand.h"
 #include "../factory/elementfactory.h"
 #include "../qetapp.h"
@@ -99,7 +100,11 @@ void DiagramEventAddElement::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 		m_element->setPos(pos_);
 
 		if (m_status_bar) {
-			m_status_bar->showMessage(QString("x %1 : y %2").arg(QString::number(pos_.x()), QString::number(pos_.y())));
+			auto *uc = UnitConverter::instance();
+			m_status_bar->showMessage(
+				QString("x %1 : y %2").arg(
+					QString::number(uc->toDisplay(pos_.x())),
+					QString::number(uc->toDisplay(pos_.y()))));
 		}
 	}
 	event->setAccepted(true);

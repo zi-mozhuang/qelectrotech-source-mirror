@@ -9,3 +9,4 @@ QElectroTech.tag
 !doc/doc-utils
 .opencode/
 graphify-out/
+build/

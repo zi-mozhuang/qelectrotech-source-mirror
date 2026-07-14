@@ -5,6 +5,7 @@
 #include "diagrameventaddmacro.h"
 
 #include "../diagram.h"
+#include "../units.h"
 #include "../qetapp.h"
 #include "../qetdiagrameditor.h"
 #include "../qetproject.h"
@@ -122,7 +123,11 @@ void DiagramEventAddMacro::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 		m_preview_item->setPos(pos_);
 
 		if (m_status_bar) {
-			m_status_bar->showMessage(QString("x %1 : y %2 (Makro-Anker)").arg(QString::number(pos_.x()), QString::number(pos_.y())));
+			auto *uc = UnitConverter::instance();
+			m_status_bar->showMessage(
+				QString("x %1 : y %2 (Makro-Anker)").arg(
+					QString::number(uc->toDisplay(pos_.x())),
+					QString::number(uc->toDisplay(pos_.y()))));
 		}
 	}
 	event->setAccepted(true);
