@@ -441,8 +441,8 @@ void GraphicsTablePropertiesEditor::setUpEditConnection()
 
 	if (m_live_edit)
 	{
-		m_edit_connection << connect(ui->m_x_pos,                QOverload<int>::of(&QSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
-		m_edit_connection << connect(ui->m_y_pos,                QOverload<int>::of(&QSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
+		m_edit_connection << connect(ui->m_x_pos,                QOverload<double>::of(&QDoubleSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
+		m_edit_connection << connect(ui->m_y_pos,                QOverload<double>::of(&QDoubleSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
 		m_edit_connection << connect(ui->m_header_top_margin,    QOverload<int>::of(&QSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
 		m_edit_connection << connect(ui->m_header_left_margin,   QOverload<int>::of(&QSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);
 		m_edit_connection << connect(ui->m_header_right_margin,  QOverload<int>::of(&QSpinBox::valueChanged),      this, &GraphicsTablePropertiesEditor::apply);

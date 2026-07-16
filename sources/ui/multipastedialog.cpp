@@ -25,6 +25,7 @@
 #include "../qetgraphicsitem/element.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../ui_multipastedialog.h"
+#include "../units.h"
 
 #include <QHash>
 #include <QSettings>
@@ -35,9 +36,10 @@ MultiPasteDialog::MultiPasteDialog(Diagram *diagram, QWidget *parent) :
 	m_diagram(diagram)
 {
 	ui->setupUi(this);
+	ui->m_x_sb->setValue(UnitConverter::instance()->fromDisplay(100));
 
-	connect(ui->m_x_sb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &MultiPasteDialog::updatePreview);
-	connect(ui->m_y_sb, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &MultiPasteDialog::updatePreview);
+	connect(ui->m_x_sb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MultiPasteDialog::updatePreview);
+	connect(ui->m_y_sb, static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this, &MultiPasteDialog::updatePreview);
 	connect(ui->m_copy_count, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &MultiPasteDialog::updatePreview);
 
 	QRectF br;

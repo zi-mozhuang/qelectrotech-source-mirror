@@ -52,7 +52,7 @@
     </widget>
    </item>
    <item row="2" column="1">
-    <widget class="QDoubleSpinBox" name="m_x_sb">
+    <widget class="UnitSpinBox" name="m_x_sb">
      <property name="suffix">
       <string>px</string>
      </property>
@@ -88,7 +88,7 @@
     </widget>
    </item>
    <item row="2" column="3">
-    <widget class="QDoubleSpinBox" name="m_y_sb">
+    <widget class="UnitSpinBox" name="m_y_sb">
      <property name="suffix">
       <string>px</string>
      </property>
@@ -174,5 +174,12 @@ Veuillez utiliser l'éditeur avancé pour cela.</string>
   <tabstop>m_break_html_pb</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+  <connections/>
+ <customwidgets>
+  <customwidget>
+   <class>UnitSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+    <header>unitspinbox.h</header>
+  </customwidget>
+ </customwidgets>
 </ui>

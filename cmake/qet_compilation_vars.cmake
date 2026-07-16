@@ -660,6 +660,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/importelementtextpatterndialog.h
   ${QET_DIR}/sources/ui/inditextpropertieswidget.cpp
   ${QET_DIR}/sources/ui/inditextpropertieswidget.h
+  ${QET_DIR}/sources/ui/unitspinbox.cpp
+  ${QET_DIR}/sources/ui/unitspinbox.h
   ${QET_DIR}/sources/ui/linksingleelementwidget.cpp
   ${QET_DIR}/sources/ui/linksingleelementwidget.h
   ${QET_DIR}/sources/ui/marginseditdialog.cpp

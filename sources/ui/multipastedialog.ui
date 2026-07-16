@@ -24,7 +24,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="m_x_sb">
+      <widget class="UnitSpinBox" name="m_x_sb">
        <property name="suffix">
         <string>px</string>
        </property>
@@ -46,7 +46,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="m_y_sb">
+      <widget class="UnitSpinBox" name="m_y_sb">
        <property name="suffix">
         <string>px</string>
        </property>
@@ -168,4 +168,11 @@
    </hints>
   </connection>
  </connections>
+ <customwidgets>
+  <customwidget>
+   <class>UnitSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>unitspinbox.h</header>
+  </customwidget>
+ </customwidgets>
 </ui>

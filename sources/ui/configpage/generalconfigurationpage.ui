@@ -711,6 +711,13 @@ Vous pouvez spécifier ici la valeur par défaut de ce champ pour les éléments
         </layout>
        </item>
        <item>
+        <widget class="Line" name="line_unit_sep">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QGroupBox" name="groupBox">
          <property name="title">
           <string>Grille : 1 - 30</string>

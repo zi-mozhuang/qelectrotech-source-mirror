@@ -20,6 +20,8 @@
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../diagram.h"
 #include "../qetapp.h"
+#include "../units.h"
+#include "unitspinbox.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/dynamicelementtextitem.h"
 #include "../qetgraphicsitem/element.h"
@@ -1692,11 +1694,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::pos:
 		{
-			QSpinBox *sb = new QSpinBox(parent);
+			UnitSpinBox *sb = new UnitSpinBox(parent);
 			sb->setObjectName("pos_dialog");
 			sb->setRange(-1000,10000);
 			sb->setFrame(false);
-			sb->setSuffix(" px");
+			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
 			return sb;
 		}
 		case DynamicElementTextModel::rotation:
@@ -1711,11 +1713,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::textWidth:
 		{
-			QSpinBox *sb = new QSpinBox(parent);
+			UnitSpinBox *sb = new UnitSpinBox(parent);
 			sb->setObjectName("width_spinbox");
 			sb->setRange(-1, 500);
 			sb->setFrame(false);
-			sb->setSuffix(" px");
+			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
 			return sb;
 		}
 		case DynamicElementTextModel::grpAlignment:
@@ -1730,11 +1732,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::grpPos:
 		{
-			QSpinBox *sb = new QSpinBox(parent);
+			UnitSpinBox *sb = new UnitSpinBox(parent);
 			sb->setObjectName("group_pos");
 			sb->setRange(-1000,10000);
 			sb->setFrame(false);
-			sb->setSuffix(" px");
+			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
 			return sb;
 		}
 		case DynamicElementTextModel::grpRotation:
@@ -1749,11 +1751,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::grpVAdjust:
 		{
-			QSpinBox *sb = new QSpinBox(parent);
+			UnitSpinBox *sb = new UnitSpinBox(parent);
 			sb->setObjectName("group_v_adjustment");
 			sb->setRange(-20, 20);
 			sb->setFrame(false);
-			sb->setSuffix(" px");
+			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
 			return sb;
 		}
 	}
@@ -1884,7 +1886,7 @@ bool DynamicTextItemDelegate::eventFilter(QObject *object, QEvent *event)
 	{
 		object->event(event);
 		
-		QSpinBox *sb = static_cast<QSpinBox *>(object);
+		QAbstractSpinBox *sb = static_cast<QAbstractSpinBox *>(object);
 		switch (event->type()) {
 			case QEvent::KeyPress:
 				emit commitData(sb); break;
