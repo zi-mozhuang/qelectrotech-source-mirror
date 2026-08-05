@@ -34,7 +34,9 @@
 #include "TerminalStrip/terminalstrip.h"
 #include "qetxml.h"
 #include "qetversion.h"
+#include "undocommand/adddiagramcommand.h"
 
+#include <QElapsedTimer>
 #include <QHash>
 #include <QTimer>
 #include <QtConcurrentRun>
@@ -227,6 +229,9 @@ void QETProject::init()
 */
 QETProject::ProjectState QETProject::openFile(QFile *file)
 {
+	QElapsedTimer load_timer;
+	load_timer.start();
+
 	bool opened_here = file->isOpen() ? false : true;
 	if (!file->isOpen()
 			&& !file->open(QIODevice::ReadOnly
@@ -245,9 +250,18 @@ QETProject::ProjectState QETProject::openFile(QFile *file)
 		}
 		return XmlParsingFailed;
 	}
+	const qint64 xml_parse_ms = load_timer.elapsed();
 
 		//Build the project from the xml
 	readProjectXml(xml_project);
+
+	const qint64 total_ms = load_timer.elapsed();
+	qInfo().nospace().noquote()
+			<< "Project \"" << fi.fileName() << "\" ("
+			<< fi.size() / 1024 << " KiB) opened in "
+			<< total_ms / 1000.0 << " seconds (xml parsing "
+			<< xml_parse_ms / 1000.0 << ", content "
+			<< (total_ms - xml_parse_ms) / 1000.0 << ")";
 
 	if (!fi.isWritable()) {
 		setReadOnly(true);
@@ -712,6 +726,7 @@ QHash <QString, NumerotationContext> QETProject::folioAutoNum() const
 */
 void QETProject::addConductorAutoNum(const QString& key, const NumerotationContext& context) {
 	m_conductor_autonum.insert(key, context);
+	emit autoNumContextUpdated();
 }
 
 /**
@@ -725,6 +740,7 @@ void QETProject::addElementAutoNum(const QString& key, const NumerotationContext
 {
 	m_element_autonum.insert(key, context);
 	emit elementAutoNumAdded(key);
+	emit autoNumContextUpdated();
 }
 
 /**
@@ -736,6 +752,7 @@ void QETProject::addElementAutoNum(const QString& key, const NumerotationContext
 */
 void QETProject::addFolioAutoNum(const QString& key, const NumerotationContext& context) {
 	m_folio_autonum.insert(key, context);
+	emit autoNumContextUpdated();
 }
 
 /**
@@ -983,6 +1000,9 @@ QDomDocument QETProject::toXml()
 	writeProjectPropertiesXml(project_properties);
 	project_root.appendChild(project_properties);
 
+	// local, non-transmitted usage tracking (time spent on this project)
+	writeUsageXml(project_root);
+
 	// Properties for news diagrams
 	QDomElement new_diagrams_properties = xml_doc.createElement("newdiagrams");
 	writeDefaultPropertiesXml(new_diagrams_properties);
@@ -1179,6 +1199,22 @@ ElementsLocation QETProject::importElement(ElementsLocation &location)
 			}
 			//Erase the existing element, and use the newer instead
 			else if (action == QET::Erase) {
+				// Warn if the new element introduces slave contact groups
+				QDomElement new_kind = location.xml().firstChildElement("kindInformations");
+				if (!new_kind.firstChildElement("slaveContactGroups").isNull()) {
+					QMessageBox::StandardButton answer = QMessageBox::warning(nullptr,
+						tr("Système de contacts modifié"),
+						tr("Le nouvel élément définit des groupes de contacts esclaves.\n"
+						   "Les éléments esclaves existants ne seront pas automatiquement "
+						   "assignés. Vous devrez relier manuellement les esclaves "
+						   "et assigner les groupes de contacts.\n\n"
+						   "Voulez-vous continuer ?"),
+						QMessageBox::Yes | QMessageBox::No,
+						QMessageBox::Yes);
+					if (answer == QMessageBox::No) {
+						return ElementsLocation();
+					}
+				}
 				ElementsLocation parent_loc = existing_location.parent();
 				return m_elements_collection->copy(location, parent_loc);
 			}
@@ -1316,6 +1352,8 @@ bool QETProject::usesTitleBlockTemplate(const TitleBlockTemplateLocation &locati
 /**
 	@brief QETProject::addNewDiagram
 	Add a new diagram in project at position pos.
+	This is pushed as an undoable AddDiagramCommand: use undoStack()->undo()
+	to remove it again.
 	@param pos
 	@return the new created diagram
 */
@@ -1331,14 +1369,15 @@ Diagram *QETProject::addNewDiagram(int pos)
 	diagram->border_and_titleblock.importTitleBlock(defaultTitleBlockProperties());
 	diagram->defaultConductorProperties = defaultConductorProperties();
 
-	addDiagram(diagram, pos);
-	emit diagramAdded(this, diagram);
+	m_undo_stack->push(new AddDiagramCommand(this, diagram, pos));
 	return(diagram);
 }
 
 /**
 	@brief QETProject::removeDiagram
-	Remove diagram from project
+	Remove diagram from project immediately (not undoable). UI code should
+	generally go through ProjectView::removeDiagram() instead, which pushes
+	an undoable RemoveDiagramCommand.
 	@param diagram
 */
 void QETProject::removeDiagram(Diagram *diagram)
@@ -1348,13 +1387,8 @@ void QETProject::removeDiagram(Diagram *diagram)
 		return;
 	}
 
-	if (m_diagrams_list.removeAll(diagram))
-	{
-		emit diagramRemoved(this, diagram);
-		diagram->deleteLater();
-	}
-
-	updateDiagramsFolioData();
+	detachDiagram(diagram);
+	diagram->deleteLater();
 }
 
 /**
@@ -1467,27 +1501,53 @@ void QETProject::readProjectXml(QDomDocument &xml_project)
 		//Load the project-wide properties
 	readProjectPropertiesXml(xml_project);
 
+		//Load the local, non-transmitted usage tracking
+	readUsageXml(xml_project);
+
 		//Load the default properties for the new diagrams
 	readDefaultPropertiesXml(xml_project);
 
 		//load the embedded titleblock templates
 	m_titleblocks_collection.fromXml(xml_project.documentElement());
 
+		/* Timings of the phases below are logged so the cost of opening a
+		 * project can be attributed. Reading the XML and building the objects
+		 * is mostly independent of the Qt version, while refreshing the
+		 * diagrams is graphics-scene work -- keeping them apart is what makes
+		 * the numbers comparable between builds.
+		 */
+	QElapsedTimer phase_timer;
+	phase_timer.start();
+
 		//Load the embedded elements collection
 	readElementsCollectionXml(xml_project);
+	const qint64 elements_ms = phase_timer.restart();
 
 		//Load the diagrams
 	readDiagramsXml(xml_project);
+	const qint64 diagrams_ms = phase_timer.restart();
 
 		//Load the terminal strip
 	readTerminalStripXml(xml_project);
+	const qint64 strips_ms = phase_timer.restart();
 
 		//Now that all are loaded we refresh content of the project.
 	refresh();
-
+	const qint64 refresh_ms = phase_timer.restart();
 
 	m_data_base.blockSignals(false);
 	m_data_base.updateDB();
+	const qint64 database_ms = phase_timer.elapsed();
+
+	qInfo().nospace()
+			<< "Project content built in "
+			<< (elements_ms + diagrams_ms + strips_ms
+				+ refresh_ms + database_ms) / 1000.0
+			<< " seconds (elements collection " << elements_ms / 1000.0
+			<< ", diagrams " << diagrams_ms / 1000.0
+			<< ", terminal strips " << strips_ms / 1000.0
+			<< ", refresh " << refresh_ms / 1000.0
+			<< ", database " << database_ms / 1000.0 << ")";
 
 	m_state = Ok;
 }
@@ -1595,6 +1655,17 @@ void QETProject::readProjectPropertiesXml(QDomDocument &xml_project)
 {
 	for (const auto &dom_elmt : QET::findInDomElement(xml_project.documentElement(), QStringLiteral("properties")))
 		m_project_properties.fromXml(dom_elmt);
+}
+
+/**
+	@brief QETProject::readUsageXml
+	Load the local, non-transmitted usage tracking (time spent on this
+	project) from the XML description of the project.
+	@param xml_project : the xml description of the project
+*/
+void QETProject::readUsageXml(QDomDocument &xml_project)
+{
+	m_project_properties_handler.usageTracker().fromXml(xml_project.documentElement());
 }
 
 /**
@@ -1733,6 +1804,15 @@ void QETProject::writeProjectPropertiesXml(QDomElement &xml_element) {
 }
 
 /**
+	@brief QETProject::writeUsageXml
+	Export the local, non-transmitted usage tracking (time spent on this
+	project) as a <usage> child of \a xml_element.
+*/
+void QETProject::writeUsageXml(QDomElement &xml_element) {
+	m_project_properties_handler.usageTracker().toXml(xml_element);
+}
+
+/**
 	@brief QETProject::writeDefaultPropertiesXml
 	Export all defaults properties used by a new diagram and his content
 	size of border
@@ -1852,6 +1932,33 @@ void QETProject::addDiagram(Diagram *diagram, int pos)
 	}
 
 	updateDiagramsFolioData();
+	emit diagramAdded(this, diagram);
+}
+
+/**
+	@brief QETProject::detachDiagram
+	Inverse of addDiagram(): removes \p diagram from this project's diagram
+	list and disconnects the signals set up by addDiagram(), without
+	destroying it. Used by RemoveDiagramCommand (and removeDiagram()) so a
+	removed diagram can be parked and later reinserted by undo.
+	@param diagram
+*/
+void QETProject::detachDiagram(Diagram *diagram)
+{
+	if (!diagram || !m_diagrams_list.contains(diagram)) {
+		return;
+	}
+
+	disconnect(&diagram->border_and_titleblock,
+		&BorderTitleBlock::needFolioData,
+		this,
+		&QETProject::updateDiagramsFolioData);
+	disconnect(diagram, &Diagram::usedTitleBlockTemplateChanged,
+		this, &QETProject::usedTitleBlockTemplateChanged);
+
+	m_diagrams_list.removeAll(diagram);
+	updateDiagramsFolioData();
+	emit diagramRemoved(this, diagram);
 }
 
 /**
@@ -1862,21 +1969,17 @@ void QETProject::writeBackup()
 {
 	if (!m_backup_enabled)
 		return;
-#	if QT_VERSION < QT_VERSION_CHECK(6, 0, 0) // ### Qt 6: remove
 		//Don't launch a new backup while the previous one is still writing:
 		//both would write through &m_backup_file on different threads.
 	if (m_backup_future.isRunning())
 		return;
+		//Capture the document by value (implicitly shared, so cheap): the
+		//Qt5-style QtConcurrent::run(function, reference-args) call did not
+		//survive the Qt6 API change, a lambda behaves identically on both.
 	QDomDocument xml_project(toXml());
-	m_backup_future = QtConcurrent::run(
-				QET::writeToFile,xml_project,&m_backup_file,nullptr);
-#	else
-#		if TODO_LIST
-#			pragma message("@TODO remove code for QT 6 or later")
-#		endif
-	qDebug() << "Help code for QT 6 or later"
-			 << "QtConcurrent::run its backwards now...function, object, args";
-#	endif
+	m_backup_future = QtConcurrent::run([this, xml_project]() mutable {
+		return QET::writeToFile(xml_project, &m_backup_file, nullptr);
+	});
 }
 
 /**
@@ -2029,7 +2132,7 @@ void QETProject::updateDiagramsFolioData()
 		}
 	}
 
-	for (const auto &diagram_ : qAsConst(m_diagrams_list)) {
+	for (const auto &diagram_ : std::as_const(m_diagrams_list)) {
 		diagram_->update();
 	}
 }

@@ -25,7 +25,6 @@
 #include "diagramevent/diagrameventinterface.h"
 #include "diagramposition.h"
 #include "factory/elementfactory.h"
-#include "units.h"
 #include "qetapp.h"
 #include "qetgraphicsitem/ViewItem/qetgraphicstableitem.h"
 #include "qetgraphicsitem/conductor.h"
@@ -179,7 +178,7 @@ Diagram::~Diagram()
 			continue;
 		deletable_items.append(qgi);
 	}
-	for (const auto &item : qAsConst(deletable_items))
+	for (const auto &item : std::as_const(deletable_items))
 	{
 		removeItem(item);
 		delete item;
@@ -211,7 +210,7 @@ void Diagram::drawBackground(QPainter *p, const QRectF &r) {
 	p -> setPen(Qt::NoPen);
 	//set brush color to present background color.
 	p -> setBrush(Diagram::background_color);
-	p -> fillRect(r, Diagram::background_color);
+	p -> drawRect(r);
 
 	QSettings settings;
 	QRectF rect = settings.value(
@@ -231,55 +230,51 @@ void Diagram::drawBackground(QPainter *p, const QRectF &r) {
 		Diagram::background_color == Qt::black? pen.setColor(Qt::white)
 							  : pen.setColor(Qt::black);
 		pen.setCosmetic(true);
+		p->setPen(pen);
+
+		p -> setBrush(Qt::NoBrush);
+
+		int xGrid = settings.value(QStringLiteral("diagrameditor/Xgrid"),
+								   Diagram::xGrid).toInt();
+		int yGrid = settings.value(QStringLiteral("diagrameditor/Ygrid"),
+								   Diagram::yGrid).toInt();
+
+		qreal limit_x = rect.x() + rect.width();
+		qreal limit_y = rect.y() + rect.height();
+
+		int g_x = (int)ceil(rect.x());
+		while (g_x % xGrid) ++ g_x;
+		int g_y = (int)ceil(rect.y());
+		while (g_y % yGrid) ++ g_y;
+
+		QPolygon points;
+		for (int gx = g_x ; gx < limit_x ; gx += xGrid) {
+			for (int gy = g_y ; gy < limit_y ; gy += yGrid) {
+				points << QPoint(gx, gy);
+			}
+		}
 
 		qreal zoom_factor = p->transform().m11();
 		int minWidthPen = settings.value(QStringLiteral("diagrameditor/grid_pointsize_min"), 1).toInt();
 		int maxWidthPen = settings.value(QStringLiteral("diagrameditor/grid_pointsize_max"), 1).toInt();
-		const qreal t = qBound(0.0, (zoom_factor - 1.0) / 4.0, 1.0);
-		int penWidth = qRound(minWidthPen + t * (maxWidthPen - minWidthPen));
-		pen.setWidth(penWidth);
-
-		p -> setPen(pen);
-		p -> setBrush(Qt::NoBrush);
-
-		const qreal limit_x = rect.right();
-		const qreal limit_y = rect.bottom();
-
-		auto *uc = UnitConverter::instance();
-		if (uc->isPixelMode()) {
-			int xGrid = settings.value(QStringLiteral("diagrameditor/Xgrid"), Diagram::xGrid).toInt();
-			int yGrid = settings.value(QStringLiteral("diagrameditor/Ygrid"), Diagram::yGrid).toInt();
-
-			int g_x = (int)std::ceil(rect.x() / xGrid) * xGrid;
-			int g_y = (int)std::ceil(rect.y() / yGrid) * yGrid;
-
-			QPolygon points;
-			points.reserve((int)std::ceil((limit_x - g_x) / xGrid) * (int)std::ceil((limit_y - g_y) / yGrid));
-			for (int gx = g_x; gx < limit_x; gx += xGrid) {
-				for (int gy = g_y; gy < limit_y; gy += yGrid) {
-					points << QPoint(gx, gy);
+		pen.setWidth(minWidthPen);
+		if (minWidthPen != maxWidthPen) {
+			qreal stepPen  = (maxWidthPen - minWidthPen) / (qreal)maxWidthPen;
+			qreal stepZoom = (5.0 - 1.0) / maxWidthPen;
+			for (int n=0; n<maxWidthPen; n++) {
+				if ((zoom_factor > (1.0 + n * stepZoom)) && (zoom_factor <= (1.0 + (n+1) * stepZoom))) {
+					int widthPen = minWidthPen + qRound(n * stepPen);
+					pen.setWidth(widthPen);
 				}
 			}
-			if (zoom_factor > 0.5)
-				p->drawPoints(points);
-		} else {
-			qreal ratio = uc->ratio();
-			qreal xGrid = settings.value(QStringLiteral("diagrameditor/Xgrid"), Diagram::xGrid).toReal() / ratio;
-			qreal yGrid = settings.value(QStringLiteral("diagrameditor/Ygrid"), Diagram::yGrid).toReal() / ratio;
-
-			qreal g_x = std::ceil(rect.x() / xGrid) * xGrid;
-			qreal g_y = std::ceil(rect.y() / yGrid) * yGrid;
-
-			QPolygonF points;
-			points.reserve((int)std::ceil((limit_x - g_x) / xGrid) * (int)std::ceil((limit_y - g_y) / yGrid));
-			for (qreal gx = g_x; gx < limit_x; gx += xGrid) {
-				for (qreal gy = g_y; gy < limit_y; gy += yGrid) {
-					points << QPointF(gx, gy);
-				}
-			}
-			if (zoom_factor > 0.5)
-				p->drawPoints(points);
+			if		(zoom_factor <= 1.0)
+						pen.setWidth(minWidthPen);
+			else if (zoom_factor > (1.0 + stepZoom * maxWidthPen))
+						pen.setWidth(maxWidthPen);
 		}
+		p -> setPen(pen);
+		if (zoom_factor > 0.5) // no grid below ... !
+				p -> drawPoints(points);
 	}
 
 	if (draw_guides_) {
@@ -438,11 +433,10 @@ void Diagram::keyPressEvent(QKeyEvent *event)
 	#endif
 	{
 		QSettings settings;
-		qreal ratio = UnitConverter::instance()->ratio();
-		qreal xKeyGrid = settings.value(QStringLiteral("diagrameditor/key_Xgrid"),
-									  Diagram::xKeyGrid).toReal() / ratio;
-		qreal yKeyGrid = settings.value(QStringLiteral("diagrameditor/key_Ygrid"),
-									  Diagram::yKeyGrid).toReal() / ratio;
+		int xKeyGrid = settings.value(QStringLiteral("diagrameditor/key_Xgrid"),
+									  Diagram::xKeyGrid).toInt();
+		int yKeyGrid = settings.value(QStringLiteral("diagrameditor/key_Ygrid"),
+									  Diagram::yKeyGrid).toInt();
 		switch(event->key())
 		{
 			case Qt::Key_Left:
@@ -482,11 +476,10 @@ void Diagram::keyPressEvent(QKeyEvent *event)
 	else if(event->modifiers() == Qt::AltModifier)
 	{
 		QSettings settings;
-		qreal ratio = UnitConverter::instance()->ratio();
-		qreal xKeyGridFine = settings.value(QStringLiteral("diagrameditor/key_fine_Xgrid"),
-										  Diagram::xKeyGridFine).toReal() / ratio;
-		qreal yKeyGridFine = settings.value(QStringLiteral("diagrameditor/key_fine_Ygrid"),
-										  Diagram::yKeyGridFine).toReal() / ratio;
+		int xKeyGridFine = settings.value(QStringLiteral("diagrameditor/key_fine_Xgrid"),
+										  Diagram::xKeyGridFine).toInt();
+		int yKeyGridFine = settings.value(QStringLiteral("diagrameditor/key_fine_Ygrid"),
+										  Diagram::yKeyGridFine).toInt();
 		switch(event->key())
 		{
 			case Qt::Key_Left:
@@ -1506,12 +1499,12 @@ bool Diagram::fromXml(QDomElement &document,
 	if (position != QPointF())
 	{
 		QVector <QGraphicsItem *> added_items;
-		for (auto element : qAsConst(added_elements   )) added_items << element;
-		for (auto shape   : qAsConst(added_shapes     )) added_items << shape;
-		for (auto text    : qAsConst(added_texts      )) added_items << text;
-		for (auto image   : qAsConst(added_images     )) added_items << image;
-		for (auto table   : qAsConst(added_tables     )) added_items << table;
-		for (const auto &strip : qAsConst(added_strips)) added_items << strip;
+		for (auto element : std::as_const(added_elements   )) added_items << element;
+		for (auto shape   : std::as_const(added_shapes     )) added_items << shape;
+		for (auto text    : std::as_const(added_texts      )) added_items << text;
+		for (auto image   : std::as_const(added_images     )) added_items << image;
+		for (auto table   : std::as_const(added_tables     )) added_items << table;
+		for (const auto &strip : std::as_const(added_strips)) added_items << strip;
 
 		//Get the top left corner of the rectangle that contain all added items
 		QRectF items_rect;
@@ -1647,11 +1640,11 @@ void Diagram::refreshContents()
 		conductor->refreshText();
 	}
 
-	for (auto &table : qAsConst(dc_.m_tables)) {
+	for (auto &table : std::as_const(dc_.m_tables)) {
 		table->initLink();
 	}
 
-	for (auto &strip :qAsConst(dc_.m_terminal_strip)) {
+	for (auto &strip :std::as_const(dc_.m_terminal_strip)) {
 		strip->refreshPending();
 	}
 }
@@ -1836,7 +1829,7 @@ void Diagram::invertSelection()
 			item_list << item;
 		}
 	}
-	for (auto item : qAsConst(item_list)) {
+	for (auto item : std::as_const(item_list)) {
 		item -> setSelected(!item -> isSelected());
 	}
 
@@ -2374,28 +2367,24 @@ DiagramPosition Diagram::convertPosition(const QPointF &pos) {
 */
 QPointF Diagram::snapToGrid(const QPointF &p)
 {
-	auto *uc = UnitConverter::instance();
-
 	QSettings settings;
-	qreal ratio = uc->ratio();
+	int xGrid = settings.value(QStringLiteral("diagrameditor/Xgrid"),
+							   Diagram::xGrid).toInt();
+	int yGrid = settings.value(QStringLiteral("diagrameditor/Ygrid"),
+							   Diagram::yGrid).toInt();
 
 	//Return a point rounded to the nearest pixel
-	if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
-		qreal unitPx = uc->fromDisplay(1.0);
-		qreal p_x = qRound(p.x() / unitPx) * unitPx;
-		qreal p_y = qRound(p.y() / unitPx) * unitPx;
-		return QPointF(p_x, p_y);
+	if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
+	{
+		int p_x = qRound(p.x());
+		int p_y = qRound(p.y());
+		return (QPointF(p_x, p_y));
 	}
 
-	qreal xGrid = settings.value(QStringLiteral("diagrameditor/Xgrid"),
-								 Diagram::xGrid).toReal() / ratio;
-	qreal yGrid = settings.value(QStringLiteral("diagrameditor/Ygrid"),
-								 Diagram::yGrid).toReal() / ratio;
-
-	//Return a point snapped to the grid
-	qreal p_x = qRound(p.x() / xGrid) * xGrid;
-	qreal p_y = qRound(p.y() / yGrid) * yGrid;
-	return QPointF(p_x, p_y);
+		//Return a point snapped to the grid
+	int p_x = qRound(p.x() / xGrid) * xGrid;
+	int p_y = qRound(p.y() / yGrid) * yGrid;
+	return (QPointF(p_x, p_y));
 }
 
 

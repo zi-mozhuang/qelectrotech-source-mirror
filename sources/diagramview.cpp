@@ -16,7 +16,6 @@
 	along with QElectroTech.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "diagramview.h"
-#include "units.h"
 #include "qetproject.h"
 #include "QPropertyUndoCommand/qpropertyundocommand.h"
 #include "diagramcommands.h"
@@ -512,9 +511,7 @@ void DiagramView::mousePressEvent(QMouseEvent *e)
 */
 void DiagramView::mouseMoveEvent(QMouseEvent *e)
 {
-	
-	qreal r = UnitConverter::instance()->ratio();
-    setToolTip(tr("X: %1 Y: %2").arg(qRound(e->pos().x() * r)).arg(qRound(e->pos().y() * r)));
+	setToolTip(tr("X: %1 Y: %2").arg(e->pos().x()).arg(e->pos().y()));
 	if (m_event_interface && m_event_interface->mouseMoveEvent(e)) return;
 
 		// Drag the view
@@ -934,7 +931,7 @@ void DiagramView::adjustSceneRect()
 	if (settings.value("diagrameditor/zoom-out-beyond-of-folio", false).toBool())
 	{
 			//When zoom out beyond of folio is active,
-			//we always adjust the scene rect to be 1/3 bigger than the viewport
+			//we always adjust the scene rect to be 1/3 bigger than the wiewport
 		QRectF vpbr = mapToScene(viewport()->rect()).boundingRect();
 		vpbr.adjust(0, 0, vpbr.width()/3, vpbr.height()/3);
 		scene_rect = scene_rect.united(vpbr);
@@ -1358,7 +1355,9 @@ void DiagramView::createTemplateFromSelection()
 	QFile file(full_path);
 	if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
 		QTextStream out(&file);
-		out.setCodec("UTF-8");
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)	// ### Qt 6: remove
+		out.setCodec("UTF-8");	// Qt6 QTextStream defaults to UTF-8
+#endif
 		out << macro_doc.toString(4);
 		file.close();
 		qDebug() << "Template successfully saved to:" << full_path;

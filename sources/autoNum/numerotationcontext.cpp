@@ -51,15 +51,22 @@ void NumerotationContext::clear ()
 	@param value the value itself
 	@param increase the increase number of value
 	@param initialvalue
+	@param modulus wrap-and-carry modulus (0 means "not a wrapping part")
+	@param format zero-padding mask, spreadsheet style: "00" pads to two
+	digits, "000" to three. Empty keeps the part type's natural width, so
+	an absent format reproduces exactly the behaviour of every context
+	written before this field existed.
 	@return true if value is append
 */
 bool NumerotationContext::addValue(const QString &type,
 				   const QVariant &value,
 				   const int increase,
-				   const int initialvalue) {
-	if (!keyIsAcceptable(type) && !value.canConvert(QVariant::String))
+				   const int initialvalue,
+				   const int modulus,
+				   const QString &format) {
+	if (!keyIsAcceptable(type) && !value.canConvert<QString>())
 		return false;
-	if (keyIsNumber(type) && !value.canConvert(QVariant::Int))
+	if (keyIsNumber(type) && !value.canConvert<int>())
 		return false;
 
 	QString valuestr = value.toString();
@@ -70,7 +77,11 @@ bool NumerotationContext::addValue(const QString &type,
 		    + "|"
 		    + QString::number(increase)
 		    + "|"
-		    + QString::number(initialvalue);
+		    + QString::number(initialvalue)
+		    + "|"
+		    + QString::number(modulus)
+		    + "|"
+		    + QString(format).remove("|");
 	return true;
 }
 
@@ -125,7 +136,7 @@ QStringList NumerotationContext::itemAt(const int i) const
 */
 QString NumerotationContext::validRegExpNum () const
 {
-	return ("unit|unitfolio|ten|tenfolio|hundred|hundredfolio|string|idfolio|folio|plant|locmach|elementline|elementcolumn|elementprefix");
+	return ("unit|unitfolio|ten|tenfolio|hundred|hundredfolio|wrap|alpha|string|idfolio|folio|plant|locmach|elementline|elementcolumn|elementprefix");
 }
 
 /**
@@ -134,7 +145,7 @@ QString NumerotationContext::validRegExpNum () const
 */
 QString NumerotationContext::validRegExpNumber() const
 {
-	return ("unit|unitfolio|ten|tenfolio|hundred|hundredfolio");
+	return ("unit|unitfolio|ten|tenfolio|hundred|hundredfolio|wrap");
 }
 
 /**
@@ -172,6 +183,12 @@ QDomElement NumerotationContext::toXml(QDomDocument &d, const QString& str) {
 			strl.at(0) == ("hundredfolio")) {
 			part.setAttribute("initialvalue", strl.at(3));
 		}
+		if (strl.at(0) == ("wrap") && strl.size() > 4) {
+			part.setAttribute("modulus", strl.at(4));
+		}
+		if (strl.size() > 5 && !strl.at(5).isEmpty()) {
+			part.setAttribute("format", strl.at(5));
+		}
 		num_auto.appendChild(part);
 	}
 	return num_auto;
@@ -183,7 +200,7 @@ QDomElement NumerotationContext::toXml(QDomDocument &d, const QString& str) {
 */
 void NumerotationContext::fromXml(QDomElement &e) {
 	clear();
-	foreach(QDomElement qde, QET::findInDomElement(e, "part")) addValue(qde.attribute("type"), qde.attribute("value"), qde.attribute("increase").toInt(), qde.attribute("initialvalue").toInt());
+	foreach(QDomElement qde, QET::findInDomElement(e, "part")) addValue(qde.attribute("type"), qde.attribute("value"), qde.attribute("increase").toInt(), qde.attribute("initialvalue").toInt(), qde.attribute("modulus").toInt(), qde.attribute("format"));
 }
 
 /**
@@ -193,10 +210,23 @@ void NumerotationContext::fromXml(QDomElement &e) {
 	@param content to replace current value
 */
 void NumerotationContext::replaceValue(int index, QString content) {
-	QString sep = "|";
-	QString type = content_[index].split("|").at(0);
+	QStringList strl = content_[index].split("|");
+	QString type = strl.at(0);
 	const QString& value = std::move(content);
-	QString increase = content_[index].split("|").at(2);
-	QString initvalue = content_[index].split("|").at(3);
-	content_[index].replace(content_[index], type + "|" + value + "|" + increase + "|" + initvalue);
+	QString increase = strl.at(2);
+	QString initvalue = strl.at(3);
+	QString modulus = strl.size() > 4 ? strl.at(4) : QStringLiteral("0");
+	QString format  = strl.size() > 5 ? strl.at(5) : QString();
+	content_[index] = type + "|" + value + "|" + increase + "|" + initvalue + "|" + modulus + "|" + format;
+}
+
+/**
+	@brief NumerotationContext::formatOf
+	@param item : a context item as returned by itemAt()
+	@return the part's zero-padding mask, or an empty string when it has
+	none -- which every context written before the field existed will be.
+*/
+QString NumerotationContext::formatOf(const QStringList &item)
+{
+	return item.size() > 5 ? item.at(5) : QString();
 }

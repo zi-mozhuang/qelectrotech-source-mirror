@@ -132,7 +132,7 @@ QList<QStandardItem *> DynamicElementTextModel::itemsForText(
 {
 	QList <QStandardItem *> qsi_list;
 	
-	if(m_texts_list.keys().contains(deti))
+	if(m_texts_list.contains(deti))
 		return qsi_list;
 
 	QStandardItem *qsi = new QStandardItem(deti->toPlainText());
@@ -720,7 +720,7 @@ QUndoCommand *DynamicElementTextModel::undoForEditedGroup(
 */
 void DynamicElementTextModel::addGroup(ElementTextItemGroup *group)
 {
-	if(m_groups_list.keys().contains(group))
+	if(m_groups_list.contains(group))
 		return;
 	
 		//Group
@@ -871,7 +871,7 @@ void DynamicElementTextModel::addGroup(ElementTextItemGroup *group)
 */
 void DynamicElementTextModel::removeGroup(ElementTextItemGroup *group)
 {
-	if(m_groups_list.keys().contains(group))
+	if(m_groups_list.contains(group))
 	{
 		QModelIndex group_index = m_groups_list.value(group)->index();
 		this->removeRow(group_index.row(), group_index.parent());
@@ -898,7 +898,7 @@ void DynamicElementTextModel::removeTextFromGroup(DynamicElementTextItem *deti,
 {
 	Q_UNUSED(group)
 	
-	if(m_texts_list.keys().contains(deti))
+	if(m_texts_list.contains(deti))
 	{
 		QStandardItem *text_item = m_texts_list.value(deti);
 		QModelIndex text_index = indexFromItem(text_item);
@@ -963,7 +963,7 @@ ElementTextItemGroup *DynamicElementTextModel::groupFromItem(
 QModelIndex DynamicElementTextModel::indexFromGroup(
 		ElementTextItemGroup *group) const
 {
-	if(m_groups_list.keys().contains(group))
+	if(m_groups_list.contains(group))
 		return m_groups_list.value(group)->index();
 	else
 		return QModelIndex();
@@ -1373,7 +1373,7 @@ void DynamicElementTextModel::setConnection(DynamicElementTextItem *deti, bool s
 {
 	if(set)
 	{
-		if(m_hash_text_connect.keys().contains(deti))
+		if(m_hash_text_connect.contains(deti))
 			return;
 		
 		QList<QMetaObject::Connection> connection_list;
@@ -1392,7 +1392,7 @@ void DynamicElementTextModel::setConnection(DynamicElementTextItem *deti, bool s
 	}
 	else
 	{
-		if(!m_hash_text_connect.keys().contains(deti))
+		if(!m_hash_text_connect.contains(deti))
 			return;
 		
 		for (const QMetaObject::Connection& con : m_hash_text_connect.value(deti))
@@ -1414,7 +1414,7 @@ void DynamicElementTextModel::setConnection(ElementTextItemGroup *group, bool se
 {
 	if(set)
 	{
-		if(m_hash_group_connect.keys().contains(group))
+		if(m_hash_group_connect.contains(group))
 			return;
 		
 		QList<QMetaObject::Connection> connection_list;
@@ -1431,7 +1431,7 @@ void DynamicElementTextModel::setConnection(ElementTextItemGroup *group, bool se
 	}
 	else
 	{
-		if(!m_hash_group_connect.keys().contains(group))
+		if(!m_hash_group_connect.contains(group))
 			return;
 		
 		for (const QMetaObject::Connection& con : m_hash_group_connect.value(group))

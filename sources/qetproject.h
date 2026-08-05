@@ -75,6 +75,8 @@ struct GuideProperties {
 */
 class QETProject : public QObject
 {
+		friend class AddDiagramCommand;
+		friend class RemoveDiagramCommand;
 		Q_OBJECT
 	public :
 		//This enum lists possible states for a particular project.
@@ -232,6 +234,12 @@ class QETProject : public QObject
 		void conductorAutoNumAdded();
 		void conductorAutoNumRemoved();
 		void folioAutoNumAdded();
+			/// A numerotation context's *values* changed -- as happens every
+			/// time an element or conductor consumes the next number, not
+			/// only when a rule is added or removed. Deliberately separate
+			/// from the *Added/*Removed signals above, which make listeners
+			/// rebuild their rule lists; this one just says "re-read me".
+		void autoNumContextUpdated();
 		void folioAutoNumRemoved();
 		void folioAutoNumChanged(QString);
 		void defaultTitleBlockPropertiesChanged();
@@ -251,10 +259,13 @@ class QETProject : public QObject
 		void readProjectPropertiesXml(QDomDocument &xml_project);
 		void readDefaultPropertiesXml(QDomDocument &xml_project);
 		void readTerminalStripXml(const QDomDocument &xml_project);
+		void readUsageXml(QDomDocument &xml_project);
 
 		void writeProjectPropertiesXml(QDomElement &);
 		void writeDefaultPropertiesXml(QDomElement &);
+		void writeUsageXml(QDomElement &);
 		void addDiagram(Diagram *diagram, int pos = -1);
+		void detachDiagram(Diagram *diagram);
 		void writeBackup();
 		void init();
 		ProjectState openFile(QFile *file);
