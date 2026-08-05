@@ -5,9 +5,9 @@ Qt5 C++17 CMake CAD/CAE app for electrical schematics. GPLv2.
 ## User preferences
 
 - Language: Chinese (respond in Chinese unless technical terms require English)
+- 思维链用中文
 - 当我要求你对项目的功能进行分析、设计新的方案时：
-  - 将内容以 Markdown 格式，保存到项目的 `/design/plan/YYYYMMDD-<主题简述>.md`（例如：`20260624-用户认证模块设计.md`）。
-  - **禁止**在聊天窗口中显示文件内容。
+  - 将内容以 Markdown 格式，保存到项目的 `/design/plan/YYYYMMDD-<主题简述>.md`（例如：`20260624-用户认证模块设计.md`）
 
 ## Build
 
