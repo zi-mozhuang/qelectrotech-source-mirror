@@ -185,6 +185,7 @@ void QETDiagramEditor::setUpElementsPanel()
 	connect(pa, SIGNAL(requestForProjectClosing           (QETProject *)), this, SLOT(closeProject(QETProject *)));
 	connect(pa, SIGNAL(requestForProjectPropertiesEdition (QETProject *)), this, SLOT(editProjectProperties(QETProject *)));
 	connect(pa, SIGNAL(requestForNewDiagram               (QETProject *)), this, SLOT(addDiagramToProject(QETProject *)));
+	connect(pa, SIGNAL(requestForNewDiagramAt             (QETProject *, int)), this, SLOT(addDiagramToProjectAt(QETProject *, int)));
 	connect(pa, SIGNAL(requestForDiagramPropertiesEdition (Diagram *)), this, SLOT(editDiagramProperties(Diagram *)));
 	connect(pa, SIGNAL(requestForDiagramsDeletion         (const QList<Diagram *> &)), this, SLOT(removeDiagrams(const QList<Diagram *> &)));
 	connect(pa, SIGNAL(requestForDiagramMoveUp			  (const QList<Diagram *> &)), this, SLOT(moveDiagramUp(const QList<Diagram *>&)));
@@ -367,6 +368,21 @@ void QETDiagramEditor::setUpActions()
 	connect(m_auto_conductor, &QAction::triggered, [this](bool ac) {
 		if (ProjectView *pv = currentProjectView())
 			pv->project()->setAutoConductor(ac);
+	});
+
+		//AutoBreakConductor
+	m_auto_break_conductor = new QAction   (QET::Icons::Conductor, tr("Coupure automatique de conducteur(s)","Tool tip of auto break conductor"), this);
+	m_auto_break_conductor->setStatusTip (tr("Couper automatiquement les conducteurs existants lors du placement d'un élément", "Status tip of auto break conductor"));
+	m_auto_break_conductor->setCheckable (true);
+	{
+		QSettings settings;
+		m_auto_break_conductor->setChecked(settings.value("diagrameditor/auto_break_conductor", false).toBool());
+	}
+	connect(m_auto_break_conductor, &QAction::triggered, [this](bool abc) {
+		QSettings settings;
+		settings.setValue("diagrameditor/auto_break_conductor", abc);
+		if (ProjectView *pv = currentProjectView())
+			pv->project()->setAutoBreakConductor(abc);
 	});
 
 		//Switch background color
@@ -808,6 +824,7 @@ void QETDiagramEditor::setUpToolBar()
 	diagram_tool_bar -> addAction (m_edit_diagram_properties);
 	diagram_tool_bar -> addAction (m_conductor_reset);
 	diagram_tool_bar -> addAction (m_auto_conductor);
+	diagram_tool_bar -> addAction (m_auto_break_conductor);
 
 	m_add_item_tool_bar = new QToolBar(tr("Ajouter"), this);
 	m_add_item_tool_bar->setObjectName("adding");
@@ -881,6 +898,8 @@ void QETDiagramEditor::setUpMenu()
 
 	// menu Projet
 	menu_project -> addAction(m_project_edit_properties);
+	menu_project -> addAction(m_auto_conductor);
+	menu_project -> addSeparator();
 	menu_project -> addAction(m_project_add_diagram);
 	menu_project -> addAction(m_remove_diagram_from_project);
 	menu_project -> addAction(m_clean_project);
@@ -916,6 +935,7 @@ void QETDiagramEditor::setUpMenu()
 	menu_affichage -> addAction(m_mode_visualise);
 	menu_affichage -> addSeparator();
 	menu_affichage -> addAction(m_draw_grid);
+	menu_affichage -> addAction(m_draw_guides);
 	menu_affichage -> addAction(m_grey_background);
 	menu_affichage -> addSeparator();
 	menu_affichage -> addActions(m_zoom_actions_group.actions());
@@ -1892,9 +1912,14 @@ void QETDiagramEditor::slot_updateModeActions()
 	{
 		m_auto_conductor -> setEnabled (true);
 		m_auto_conductor -> setChecked (pv -> project() -> autoConductor());
+		m_auto_break_conductor -> setEnabled (true);
+		m_auto_break_conductor -> setChecked (pv -> project() -> autoBreakConductor());
 	}
 	else
+	{
 		m_auto_conductor -> setDisabled(true);
+		m_auto_break_conductor -> setDisabled(true);
+	}
 }
 
 /**
@@ -2272,6 +2297,25 @@ void QETDiagramEditor::addDiagramToProject(QETProject *project)
 	{
 		activateProject(project);
 		project_view->project()->addNewDiagram();
+	}
+}
+
+/**
+	@brief QETDiagramEditor::addDiagramToProjectAt
+	Add a diagram to project, inserted at a specific position.
+	@param project
+	@param pos
+*/
+void QETDiagramEditor::addDiagramToProjectAt(QETProject *project, int pos)
+{
+	if (!project) {
+		return;
+	}
+
+	if (ProjectView *project_view = findProject(project))
+	{
+		activateProject(project);
+		project_view->project()->addNewDiagram(pos);
 	}
 }
 /**
