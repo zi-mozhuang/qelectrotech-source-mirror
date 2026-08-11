@@ -215,6 +215,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/exportpropertieswidget.h
   ${QET_DIR}/sources/genericpanel.cpp
   ${QET_DIR}/sources/genericpanel.h
+  ${QET_DIR}/sources/lastusedstyle.cpp
+  ${QET_DIR}/sources/lastusedstyle.h
   ${QET_DIR}/sources/machine_info.cpp
   ${QET_DIR}/sources/machine_info.h
   ${QET_DIR}/sources/main.cpp
@@ -295,6 +297,9 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/dataBase/ui/elementquerywidget.h
   ${QET_DIR}/sources/dataBase/ui/summaryquerywidget.cpp
   ${QET_DIR}/sources/dataBase/ui/summaryquerywidget.h
+
+  ${QET_DIR}/sources/autobreakconductor.cpp
+  ${QET_DIR}/sources/autobreakconductor.h
 
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.cpp
   ${QET_DIR}/sources/diagramevent/diagrameventaddelement.h

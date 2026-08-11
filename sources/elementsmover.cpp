@@ -17,9 +17,9 @@
 */
 #include "elementsmover.h"
 #include "qetproject.h"
+#include "autobreakconductor.h"
 #include "conductorautonumerotation.h"
 #include "diagram.h"
-#include "units.h"
 #include "qetgraphicsitem/conductor.h"
 #include "qetgraphicsitem/conductortextitem.h"
 #include "qetgraphicsitem/diagramimageitem.h"
@@ -155,11 +155,7 @@ void ElementsMover::continueMovement(const QPointF &movement)
 	if (m_status_bar && m_movement_driver)
 	{
 		const auto point_{m_movement_driver->scenePos()};
-		auto *uc = UnitConverter::instance();
-		m_status_bar->showMessage(
-			QString("x %1 : y %2").arg(
-				QString::number(uc->toDisplay(point_.x())),
-				QString::number(uc->toDisplay(point_.y()))));
+		m_status_bar->showMessage(QString("x %1 : y %2").arg(QString::number(point_.x()), QString::number(point_.y())));
 	}
 }
 
@@ -181,6 +177,19 @@ void ElementsMover::endMovement()
 	if (!m_current_movement.isNull()) {
 		QUndoCommand *quc{new MoveGraphicsItemCommand(m_diagram, m_moved_content, m_current_movement, undo_object)};
 		undo_object->setText(quc->text());
+	}
+
+		//Auto-break conductors: for each moved element, break any conductor
+		//whose path passes through a terminal dock point, and reconnect through
+		//the element.  The element is already at its final position on screen.
+	if (m_diagram->project()->autoBreakConductor())
+	{
+		QList<Conductor *> conductors_handled;
+		QSet<Terminal *> used_terminals;
+		for (Element *e : m_moved_content.m_elements) {
+			autoBreakConductors(m_diagram, e, undo_object,
+					    conductors_handled, used_terminals);
+		}
 	}
 
 		//There is only one element moved, and project authorize auto conductor,

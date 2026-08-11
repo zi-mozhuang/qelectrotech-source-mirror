@@ -226,7 +226,7 @@ void ElementPropertiesEditorWidget::setUpInterface()
 	ui->m_tree->setItemDelegate(new EditorDelegate(this));
 
 	// NEU: Checkbox mit der Zahlenbox verbinden (Aktivieren/Deaktivieren)
-	connect(ui->max_slaves_checkbox, SIGNAL(toggled(bool)), ui->max_slaves_spinbox, SLOT(setEnabled(bool)));
+	connect(ui->max_slaves_checkbox, &QCheckBox::toggled, ui->max_slaves_spinbox, &QWidget::setEnabled);
 	connect(ui->max_slaves_spinbox, QOverload<int>::of(&QSpinBox::valueChanged), [this](int) {
 		if (ui->m_slave_groups_checkbox->isChecked()) {
 			populateSlaveGroupsTable();
@@ -473,9 +473,6 @@ void ElementPropertiesEditorWidget::populateSlaveGroupsTable()
 
 	int row_count = ui->max_slaves_checkbox->isChecked()
 		? ui->max_slaves_spinbox->value() : 0;
-
-	// If we have existing groups, use their count (up to max_slaves)
-	int existing_groups = m_data.m_slave_contact_groups.size();
 
 	// Adjust the groups list to match the spinbox value
 	while (m_data.m_slave_contact_groups.size() < row_count) {
@@ -1160,6 +1157,7 @@ void ElementPropertiesEditorWidget::plcAddRow()
 void ElementPropertiesEditorWidget::plcTerminalCountChanged(int row, int count)
 {
 	Q_UNUSED(row)
+	Q_UNUSED(count)
 	if (!m_plc_terminal_table)
 		return;
 

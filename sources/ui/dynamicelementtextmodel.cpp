@@ -20,8 +20,6 @@
 #include "../QPropertyUndoCommand/qpropertyundocommand.h"
 #include "../diagram.h"
 #include "../qetapp.h"
-#include "../units.h"
-#include "unitspinbox.h"
 #include "../qetgraphicsitem/conductor.h"
 #include "../qetgraphicsitem/dynamicelementtextitem.h"
 #include "../qetgraphicsitem/element.h"
@@ -38,6 +36,7 @@
 #include <QHash>
 #include <QModelIndex>
 #include <QStandardItem>
+#include <QTimer>
 #include <QUndoCommand>
 
 static int src_txt_row   = 0;
@@ -1597,6 +1596,15 @@ DynamicTextItemDelegate::DynamicTextItemDelegate(QObject *parent) :
 	QStyledItemDelegate(parent)
 {}
 
+void DynamicTextItemDelegate::commitAndCloseDeferred(QWidget *editor) const
+{
+	auto *self = const_cast<DynamicTextItemDelegate *>(this);
+	QTimer::singleShot(0, self, [self, editor]() {
+		emit self->commitData(editor);
+		emit self->closeEditor(editor);
+	});
+}
+
 QWidget *DynamicTextItemDelegate::createEditor(
 		QWidget *parent,
 		const QStyleOptionViewItem &option,
@@ -1684,21 +1692,51 @@ QWidget *DynamicTextItemDelegate::createEditor(
 				w->setProperty("ok", ok);
 			}
 			w->setObjectName("font_dialog");
+			commitAndCloseDeferred(w);
 			return w;
 		}
 		case DynamicElementTextModel::color:
 		{
-			QColorDialog *cd = new QColorDialog(index.data(Qt::EditRole).value<QColor>(), parent);
-			cd->setObjectName("color_dialog");
-			return cd;
+				/* Like the font case above: run the dialog synchronously via
+				 * its static convenience function and stash the result on a
+				 * plain placeholder widget, rather than handing back the
+				 * QColorDialog itself as the item view's "editor".
+				 *
+				 * The item view's own Enter/Escape handling (the base
+				 * QStyledItemDelegate::eventFilter(), since "color_dialog"
+				 * isn't one of the objectNames special-cased in this
+				 * delegate's own eventFilter() above) treats whatever
+				 * createEditor() returned as a small inline editor it
+				 * commits and destroys directly on a key press. A QColorDialog
+				 * is not that: on Windows it can hand off to the native
+				 * color picker, whose own accept/close path then races the
+				 * view's -- pressing Enter fired both, one tearing down an
+				 * object the other was still using (case #323 on the bug
+				 * tracker: "QObject::installEventFilter(): Cannot filter
+				 * events for objects in a different thread" immediately
+				 * followed by a segfault; clicking the dialog's own OK
+				 * button with the mouse didn't reach the view's key
+				 * handling, so it didn't crash). Resolving the dialog
+				 * before returning removes the second, competing teardown
+				 * path entirely. */
+			QColor color = QColorDialog::getColor(index.data(Qt::EditRole).value<QColor>(), parent);
+			QWidget *w = new QWidget(parent);
+			if (color.isValid())
+			{
+				w->setProperty("color", color);
+				w->setProperty("ok", true);
+			}
+			w->setObjectName("color_dialog");
+			commitAndCloseDeferred(w);
+			return w;
 		}
 		case DynamicElementTextModel::pos:
 		{
-			UnitSpinBox *sb = new UnitSpinBox(parent);
+			QSpinBox *sb = new QSpinBox(parent);
 			sb->setObjectName("pos_dialog");
 			sb->setRange(-1000,10000);
 			sb->setFrame(false);
-			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
+			sb->setSuffix(" px");
 			return sb;
 		}
 		case DynamicElementTextModel::rotation:
@@ -1713,11 +1751,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::textWidth:
 		{
-			UnitSpinBox *sb = new UnitSpinBox(parent);
+			QSpinBox *sb = new QSpinBox(parent);
 			sb->setObjectName("width_spinbox");
 			sb->setRange(-1, 500);
 			sb->setFrame(false);
-			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
+			sb->setSuffix(" px");
 			return sb;
 		}
 		case DynamicElementTextModel::grpAlignment:
@@ -1732,11 +1770,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::grpPos:
 		{
-			UnitSpinBox *sb = new UnitSpinBox(parent);
+			QSpinBox *sb = new QSpinBox(parent);
 			sb->setObjectName("group_pos");
 			sb->setRange(-1000,10000);
 			sb->setFrame(false);
-			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
+			sb->setSuffix(" px");
 			return sb;
 		}
 		case DynamicElementTextModel::grpRotation:
@@ -1751,11 +1789,11 @@ QWidget *DynamicTextItemDelegate::createEditor(
 		}
 		case DynamicElementTextModel::grpVAdjust:
 		{
-			UnitSpinBox *sb = new UnitSpinBox(parent);
+			QSpinBox *sb = new QSpinBox(parent);
 			sb->setObjectName("group_v_adjustment");
 			sb->setRange(-20, 20);
 			sb->setFrame(false);
-			sb->setSuffix(UnitConverter::unitSuffix(UnitConverter::instance()->system()));
+			sb->setSuffix(" px");
 			return sb;
 		}
 	}
@@ -1790,15 +1828,15 @@ void DynamicTextItemDelegate::setModelData(
 			{
 				if(QStandardItem *qsi = qsim->itemFromIndex(index))
 				{
-					QColorDialog *cd = static_cast<QColorDialog *> (editor);
-					if (cd->result() == QDialog::Accepted)
+					if (editor->property("ok").toBool() == true)
 					{
-						qsi->setData(cd->selectedColor(), Qt::EditRole);
-						qsi->setData(cd->selectedColor(), Qt::ForegroundRole);
+						QColor color = editor->property("color").value<QColor>();
+						qsi->setData(color, Qt::EditRole);
+						qsi->setData(color, Qt::ForegroundRole);
 					}
 					return;
 				}
-				
+
 			}
 		}
 		else if (editor->objectName() == "info_text")
@@ -1886,7 +1924,7 @@ bool DynamicTextItemDelegate::eventFilter(QObject *object, QEvent *event)
 	{
 		object->event(event);
 		
-		QAbstractSpinBox *sb = static_cast<QAbstractSpinBox *>(object);
+		QSpinBox *sb = static_cast<QSpinBox *>(object);
 		switch (event->type()) {
 			case QEvent::KeyPress:
 				emit commitData(sb); break;
