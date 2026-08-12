@@ -262,6 +262,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/recentfiles.h
   ${QET_DIR}/sources/shortcutmanager.cpp
   ${QET_DIR}/sources/shortcutmanager.h
+  ${QET_DIR}/sources/units.cpp
+  ${QET_DIR}/sources/units.h
   ${QET_DIR}/sources/titleblockcell.cpp
   ${QET_DIR}/sources/titleblockcell.h
   ${QET_DIR}/sources/titleblockproperties.cpp
@@ -743,6 +745,8 @@ set(QET_SRC_FILES
   ${QET_DIR}/sources/ui/titleblockpropertieswidget.h
   ${QET_DIR}/sources/ui/xrefpropertieswidget.cpp
   ${QET_DIR}/sources/ui/xrefpropertieswidget.h
+  ${QET_DIR}/sources/ui/unitspinbox.cpp
+  ${QET_DIR}/sources/ui/unitspinbox.h
   ${QET_DIR}/sources/ui/configpage/configpage.h
   ${QET_DIR}/sources/ui/configpage/configpages.cpp
   ${QET_DIR}/sources/ui/configpage/configpages.h

@@ -13,15 +13,22 @@ Qt5 C++17 CMake CAD/CAE app for electrical schematics. GPLv2.
 
 ## Build
 
-```sh
-cmake -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DQt5_DIR=/usr/lib/cmake/Qt5 \
-  -DBUILD_WITH_KF5=OFF          # set ON for KDE Frameworks 5
-  -DPACKAGE_TESTS=ON            # OFF to skip test targets
-cmake --build build -j$(nproc)
-```
+**通过 qt-creator MCP 构建/调试/运行，不要直接在 WSL shell 里跑 cmake。**
 
+### Qt Creator MCP 工具
+
+| 操作 | MCP 工具 |
+|---|---|
+| 构建（当前项目） | `qt-creator_build` |
+| 运行 | `qt-creator_run_project` |
+| 调试（启动调试会话） | `qt-creator_debug`，配合 `qt-creator_get_*`/`qt-creator_debugger_*` 系列 |
+| 测试 | `qt-creator_run_tests`（构建+执行），详见 Tests |
+| 查看错误/警告 | `qt-creator_list_issues` |
+
+### 构建环境注意事项
+
+- 项目在 Windows 侧 Qt Creator 打开，源码位于 WSL UNC 路径 `\\wsl.localhost\Ubuntu-26.04\home\zmz\qelectrotech-source-mirror`，工具链为 Windows 侧 Qt 官方 MinGW（CMake `D:/QT/Tools/CMake_64`、编译器 `D:/QT/Tools/mingw810_64`、Qt `D:/QT/5.15.2/mingw81_64`、Ninja `C:/msys64/mingw64`）。
+- **构建目录固定为 `build/debug`
 - Legacy `qelectrotech.pro` (qmake) still exists — **prefer CMake**.
 - Dependencies: Qt5 (Widgets, Svg, Sql, Xml, PrintSupport, Concurrent, Network), SQLite3, pugixml (bundled via git submodule), SingleApplication (v3.2.0, bundled via FetchContent).
 - KF5 (kcoreaddons, kwidgetsaddons) fetched at tag `v5.77.0` from KDE Git when `BUILD_WITH_KF5=ON`. Set `BUILD_KF5=OFF` to use system packages instead.
@@ -39,11 +46,7 @@ Controlled by `PACKAGE_TESTS` (not standard `BUILD_TESTING`). Three test framewo
 | `tests/googletest/` | GoogleTest (bundled) | — |
 | `tests/qttest/` | QtTest | `qt_unittests` |
 
-```sh
-cmake --build build --target C_unittests   # Catch2 tests
-cmake --build build --target qt_unittests  # QtTest tests
-cd build && ctest --output-on-failure      # all enabled tests
-```
+**通过 Qt Creator MCP 运行测试：** `qt-creator_run_tests`（构建+执行所有已发现测试）。可选 `scope`/`names` 参数缩小范围。失败详情用 `qt-creator_get_test_details`，测试清单用 `qt-creator_list_tests`。不要用 `ctest`（本地工具链无法在 WSL UNC 路径下工作）。
 
 `BUILD_TESTING=OFF` is set in CI release builds — tests are **not** compiled by default with `-DPACKAGE_TESTS=OFF` (default is ON in CMakeLists.txt but OFF in CI).
 
@@ -54,7 +57,7 @@ cd build && ctest --output-on-failure      # all enabled tests
 - `QT_HASH_SEED=0` is hardcoded in `main.cpp` for deterministic XML output.
 - Logs written to `dataDir/yyyyMMdd.log`, auto-cleaned after 7 days.
 - UI `.ui` files live in `sources/ui/` and subdirectories; `CMAKE_AUTOUIC_SEARCH_PATHS` points there.
-- Translations: `lang/*.ts` → compiled `.qm` via `qt5_add_translation`. Set `-DDUPDATE_TRANSLATIONS=ON` to rebuild `.ts` from sources.
+- Translations: `lang/*.ts` → compiled `.qm` via `qt5_add_translation`. Set 
 
 ## Code style
 
@@ -70,7 +73,6 @@ cd build && ctest --output-on-failure      # all enabled tests
 |---|---|---|
 | `BUILD_WITH_KF5` | ON | Link KDE Frameworks 5 (kcoreaddons, kwidgetsaddons) |
 | `PACKAGE_TESTS` | ON | Build test subdirectories |
-| `DUPDATE_TRANSLATIONS` | OFF | Re-scan sources for translatable strings |
 | `BUILD_PUGIXML` | YES | Build bundled pugixml vs system |
 
 Always-on defines: `QET_ALLOW_OVERRIDE_CED_OPTION`, `QET_ALLOW_OVERRIDE_CD_OPTION`, `QET_ALLOW_OVERRIDE_DD_OPTION`, `QET_ALLOW_OVERRIDE_CTBTD_OPTION`, `QT_DEPRECATED_WARNINGS`, `QT_MESSAGELOGCONTEXT`. Uncomment `QT_DISABLE_DEPRECATED_BEFORE=0x060000` in `cmake/developer_options.cmake` to error on Qt5-deprecated APIs.
